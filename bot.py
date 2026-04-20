@@ -7,7 +7,7 @@ from telegram import Bot
 TOKEN = os.getenv("TOKEN")
 bot = Bot(token=TOKEN)
 
-app = Flask(name)
+app = Flask(__name__)
 
 session = requests.Session()
 
