@@ -12,7 +12,7 @@ app = Flask(__name__)
 session = requests.Session()
 
 
-# ⚡ ترجمة سريعة (مرة واحدة لكل لغة)
+# ⚡ ترجمة سريعة
 def multi_translate(text):
     try:
         en = GoogleTranslator(source="auto", target="en").translate(text)
@@ -22,14 +22,6 @@ def multi_translate(text):
     except Exception as e:
         print("Translate error:", e)
         return text, text, text
-
-
-# 🔍 كشف اللغة
-def get_lang(text):
-    try:
-        return detect(text)
-    except:
-        return "en"
 
 
 @app.route("/webhook", methods=["POST"])
@@ -48,37 +40,23 @@ def webhook():
         if not text or not chat_id:
             return "ok", 200
 
-        # 🔥 1) forward الرسالة
-        requests.get(
-            f"{URL}/forwardMessage",
-            params={
-                "chat_id": chat_id,
-                "from_chat_id": chat_id,
-                "message_id": message_id
-            }
-        )
-
-        # ⚡ 2) الترجمة السريعة
+        # ⚡ ترجمة
         en, tr, ru = multi_translate(text)
 
         reply = f"""🌍 Translation:
 
-🇬🇧 English:
-{en}
-
-🇹🇷 Turkish:
-{tr}
-
-🇷🇺 Russian:
-{ru}
+🇬🇧 {en}
+🇹🇷 {tr}
+🇷🇺 {ru}
 """
 
-        # 💬 3) إرسال الترجمة (فقاعة واحدة)
+        # 💬 Reply على نفس الرسالة
         requests.get(
             f"{URL}/sendMessage",
             params={
                 "chat_id": chat_id,
-                "text": reply
+                "text": reply,
+                "reply_to_message_id": message_id
             }
         )
 
