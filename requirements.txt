@@ -1,5 +1,5 @@
-gunicorn
-requests
-langdetect
 flask
-python-telegram-bot==20.7
+requests
+gunicorn
+langdetect
+deep-translator
