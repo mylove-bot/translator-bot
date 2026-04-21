@@ -2,6 +2,7 @@ import os
 import requests
 import re
 from flask import Flask, request
+from langdetect import detect
 from deep_translator import GoogleTranslator
 
 TOKEN = os.getenv("TOKEN")
@@ -12,7 +13,7 @@ app = Flask(__name__)
 session = requests.Session()
 
 
-# 🔍 تحديد اللغة بشكل ذكي
+# 🔍 كشف لغة ذكي
 def get_lang(text):
     try:
         # عربي
@@ -23,9 +24,17 @@ def get_lang(text):
         if re.search(r'[\u0400-\u04FF]', text):
             return "ru"
 
-        # إنجليزي / لاتيني
-        if re.search(r'[a-zA-Z]', text):
-            return "en"
+        # تركي (حروف خاصة)
+        if re.search(r'[ğüşöçıİ]', text.lower()):
+            return "tr"
+
+        # fallback ذكي
+        lang = detect(text)
+
+        if lang.startswith("tr"):
+            return "tr"
+        if lang.startswith("ru"):
+            return "ru"
 
         return "en"
 
