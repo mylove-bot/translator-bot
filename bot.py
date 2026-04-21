@@ -12,17 +12,19 @@ app = Flask(__name__)
 session = requests.Session()
 
 
-# 🔥 ترجمة احترافية (Google)
-def translate(text, source, target):
+# ⚡ ترجمة سريعة (مرة واحدة لكل لغة)
+def multi_translate(text):
     try:
-        translated = GoogleTranslator(source=source, target=target).translate(text)
-        return translated
+        en = GoogleTranslator(source="auto", target="en").translate(text)
+        tr = GoogleTranslator(source="auto", target="tr").translate(text)
+        ru = GoogleTranslator(source="auto", target="ru").translate(text)
+        return en, tr, ru
     except Exception as e:
         print("Translate error:", e)
-        return "⚠️ translation error"
+        return text, text, text
 
 
-# 🔥 كشف اللغة
+# 🔍 كشف اللغة
 def get_lang(text):
     try:
         return detect(text)
@@ -30,7 +32,6 @@ def get_lang(text):
         return "en"
 
 
-# 🔥 webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json(silent=True)
@@ -42,38 +43,37 @@ def webhook():
         message = data.get("message", {})
         text = message.get("text", "")
         chat_id = message.get("chat", {}).get("id")
+        message_id = message.get("message_id")
 
         if not text or not chat_id:
             return "ok", 200
 
-        lang = get_lang(text)
+        # 🔥 1) forward الرسالة
+        requests.get(
+            f"{URL}/forwardMessage",
+            params={
+                "chat_id": chat_id,
+                "from_chat_id": chat_id,
+                "message_id": message_id
+            }
+        )
 
-        # 🇬🇧 English
-        if lang.startswith("en"):
-            tr = translate(text, "en", "tr")
-            ru = translate(text, "en", "ru")
-            reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
+        # ⚡ 2) الترجمة السريعة
+        en, tr, ru = multi_translate(text)
 
-        # 🇹🇷 Turkish
-        elif lang.startswith("tr"):
-            en = translate(text, "tr", "en")
-            ru = translate(text, "tr", "ru")
-            reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
+        reply = f"""🌍 Translation:
 
-        # 🇷🇺 Russian
-        elif lang.startswith("ru"):
-            en = translate(text, "ru", "en")
-            tr = translate(text, "ru", "tr")
-            reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
+🇬🇧 English:
+{en}
 
-        # 🌍 أي لغة ثانية
-        else:
-            en = translate(text, "auto", "en")
-            tr = translate(text, "auto", "tr")
-            ru = translate(text, "auto", "ru")
-            reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
+🇹🇷 Turkish:
+{tr}
 
-        # 🔥 إرسال الرسالة
+🇷🇺 Russian:
+{ru}
+"""
+
+        # 💬 3) إرسال الترجمة (فقاعة واحدة)
         requests.get(
             f"{URL}/sendMessage",
             params={
