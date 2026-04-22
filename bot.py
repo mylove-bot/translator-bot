@@ -7,16 +7,18 @@ from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-# 🔴 لازم تحطه في Render Environment Variables
+# 🔴 مهم جدًا: لازم يكون في Render Environment Variables
 TOKEN = os.getenv("TOKEN")
 
+print("🔑 TOKEN IN SERVER:", TOKEN)
+
 if not TOKEN:
-    print("❌ TOKEN missing in Render Environment Variables")
+    print("❌ TOKEN is missing!")
 
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
 
-# 🔍 تحديد اللغة
+# 🔍 كشف اللغة
 def get_lang(text):
     try:
         if re.search(r'[\u0600-\u06FF]', text):
@@ -55,7 +57,7 @@ def translate(text, target):
 def webhook():
     data = request.get_json(force=True)
 
-    print("🔥 UPDATE RECEIVED:", data)
+    print("🔥 UPDATE:", data)
 
     message = data.get("message") or data.get("edited_message")
 
@@ -74,7 +76,6 @@ def webhook():
 
     lang = get_lang(text)
 
-    # 🌍 الترجمة
     if lang == "en":
         tr = translate(text, "tr")
         ru = translate(text, "ru")
@@ -96,7 +97,7 @@ def webhook():
         ru = translate(text, "ru")
         reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    # 🚀 إرسال الرسالة + Debug قوي
+    # 🚀 إرسال + كشف الخطأ الحقيقي
     r = requests.post(
         f"{URL}/sendMessage",
         data={
@@ -105,8 +106,8 @@ def webhook():
         }
     )
 
-    print("📤 STATUS CODE:", r.status_code)
-    print("📤 TELEGRAM RESPONSE:", r.text)
+    print("📤 STATUS:", r.status_code)
+    print("📤 RESPONSE:", r.text)
 
     return "ok", 200
 
@@ -117,7 +118,7 @@ def home():
     return "Bot is running", 200
 
 
-# 🚀 تشغيل محلي / Render
+# 🚀 تشغيل
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
