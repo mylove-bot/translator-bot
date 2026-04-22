@@ -1,4 +1,3 @@
-import os
 import requests
 import re
 from flask import Flask, request
@@ -7,13 +6,8 @@ from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-# 🔴 مهم جدًا: لازم يكون في Render Environment Variables
+# 🔴 حط التوكن الجديد هنا
 TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
-
-print("🔑 TOKEN IN SERVER:", TOKEN)
-
-if not TOKEN:
-    print("❌ TOKEN is missing!")
 
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -57,8 +51,6 @@ def translate(text, target):
 def webhook():
     data = request.get_json(force=True)
 
-    print("🔥 UPDATE:", data)
-
     message = data.get("message") or data.get("edited_message")
 
     if not message:
@@ -68,14 +60,12 @@ def webhook():
     chat_id = message.get("chat", {}).get("id")
     message_id = message.get("message_id")
 
-    print("💬 TEXT:", text)
-    print("🆔 CHAT ID:", chat_id)
-
     if not text or not chat_id:
         return "ok", 200
 
     lang = get_lang(text)
 
+    # 🌍 الترجمة
     if lang == "en":
         tr = translate(text, "tr")
         ru = translate(text, "ru")
@@ -97,17 +87,15 @@ def webhook():
         ru = translate(text, "ru")
         reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    # 🚀 إرسال + كشف الخطأ الحقيقي
-    r = requests.post(
+    # 🚀 إرسال + reply على نفس الرسالة
+    requests.post(
         f"{URL}/sendMessage",
         data={
             "chat_id": chat_id,
-            "text": reply
+            "text": reply,
+            "reply_to_message_id": message_id
         }
     )
-
-    print("📤 STATUS:", r.status_code)
-    print("📤 RESPONSE:", r.text)
 
     return "ok", 200
 
@@ -120,5 +108,4 @@ def home():
 
 # 🚀 تشغيل
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
