@@ -7,16 +7,16 @@ from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-# 🔴 لازم يكون موجود في Render Environment Variables
+# 🔴 لازم تحطه في Render Environment Variables
 TOKEN = os.getenv("TOKEN")
 
 if not TOKEN:
-    print("❌ TOKEN is missing in environment variables!")
+    print("❌ TOKEN missing in Render Environment Variables")
 
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
 
-# 🔍 كشف اللغة
+# 🔍 تحديد اللغة
 def get_lang(text):
     try:
         if re.search(r'[\u0600-\u06FF]', text):
@@ -41,7 +41,7 @@ def get_lang(text):
         return "en"
 
 
-# ⚡ ترجمة
+# ⚡ الترجمة
 def translate(text, target):
     try:
         return GoogleTranslator(source="auto", target=target).translate(text)
@@ -55,7 +55,7 @@ def translate(text, target):
 def webhook():
     data = request.get_json(force=True)
 
-    print("🔥 UPDATE:", data)  # Debug مهم جدًا
+    print("🔥 UPDATE RECEIVED:", data)
 
     message = data.get("message") or data.get("edited_message")
 
@@ -67,13 +67,14 @@ def webhook():
     message_id = message.get("message_id")
 
     print("💬 TEXT:", text)
-    print("🆔 CHAT:", chat_id)
+    print("🆔 CHAT ID:", chat_id)
 
     if not text or not chat_id:
         return "ok", 200
 
     lang = get_lang(text)
 
+    # 🌍 الترجمة
     if lang == "en":
         tr = translate(text, "tr")
         ru = translate(text, "ru")
@@ -95,29 +96,28 @@ def webhook():
         ru = translate(text, "ru")
         reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    # 🚀 إرسال الرسالة + Debug response
+    # 🚀 إرسال الرسالة + Debug قوي
     r = requests.post(
         f"{URL}/sendMessage",
         data={
             "chat_id": chat_id,
-            "text": reply,
-            "reply_to_message_id": message_id
+            "text": reply
         }
     )
 
-    print("📤 SEND STATUS:", r.status_code)
-    print("📤 RESPONSE:", r.text)
+    print("📤 STATUS CODE:", r.status_code)
+    print("📤 TELEGRAM RESPONSE:", r.text)
 
     return "ok", 200
 
 
-# 🏠 test
+# 🏠 اختبار السيرفر
 @app.route("/")
 def home():
     return "Bot is running", 200
 
 
-# 🚀 تشغيل محلي/Render
+# 🚀 تشغيل محلي / Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
