@@ -7,16 +7,13 @@ from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-# 🔴 مهم: التوكن لازم يكون موجود في Render Environment Variables
+# 🔴 لازم يكون موجود في Render Environment Variables
 TOKEN = os.getenv("TOKEN")
 
 if not TOKEN:
-    print("❌ TOKEN is missing! Add it in Render Environment Variables")
-    TOKEN = "MISSING_TOKEN"
+    print("❌ TOKEN is missing in environment variables!")
 
 URL = f"https://api.telegram.org/bot{TOKEN}"
-
-session = requests.Session()
 
 
 # 🔍 كشف اللغة
@@ -44,7 +41,7 @@ def get_lang(text):
         return "en"
 
 
-# ⚡ الترجمة
+# ⚡ ترجمة
 def translate(text, target):
     try:
         return GoogleTranslator(source="auto", target=target).translate(text)
@@ -56,71 +53,71 @@ def translate(text, target):
 # 💬 webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json(silent=True)
+    data = request.get_json(force=True)
 
-    if not data:
+    print("🔥 UPDATE:", data)  # Debug مهم جدًا
+
+    message = data.get("message") or data.get("edited_message")
+
+    if not message:
         return "ok", 200
 
-    try:
-        message = data.get("message", {})
-        text = message.get("text", "")
-        chat_id = message.get("chat", {}).get("id")
-        message_id = message.get("message_id")
+    text = message.get("text")
+    chat_id = message.get("chat", {}).get("id")
+    message_id = message.get("message_id")
 
-        if not text or not chat_id:
-            return "ok", 200
+    print("💬 TEXT:", text)
+    print("🆔 CHAT:", chat_id)
 
-        lang = get_lang(text)
+    if not text or not chat_id:
+        return "ok", 200
 
-        # 🇬🇧 English → TR + RU
-        if lang == "en":
-            tr = translate(text, "tr")
-            ru = translate(text, "ru")
-            reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
+    lang = get_lang(text)
 
-        # 🇹🇷 Turkish → EN + RU
-        elif lang == "tr":
-            en = translate(text, "en")
-            ru = translate(text, "ru")
-            reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
+    if lang == "en":
+        tr = translate(text, "tr")
+        ru = translate(text, "ru")
+        reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
 
-        # 🇷🇺 Russian → EN + TR
-        elif lang == "ru":
-            en = translate(text, "en")
-            tr = translate(text, "tr")
-            reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
+    elif lang == "tr":
+        en = translate(text, "en")
+        ru = translate(text, "ru")
+        reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
 
-        # 🌍 fallback
-        else:
-            en = translate(text, "en")
-            tr = translate(text, "tr")
-            ru = translate(text, "ru")
-            reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
+    elif lang == "ru":
+        en = translate(text, "en")
+        tr = translate(text, "tr")
+        reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
 
-        # 💬 إرسال الرد
-        requests.post(
-            f"{URL}/sendMessage",
-            data={
-                "chat_id": chat_id,
-                "text": reply,
-                "reply_to_message_id": message_id
-            },
-            timeout=10
-        )
+    else:
+        en = translate(text, "en")
+        tr = translate(text, "tr")
+        ru = translate(text, "ru")
+        reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    except Exception as e:
-        print("ERROR:", e)
+    # 🚀 إرسال الرسالة + Debug response
+    r = requests.post(
+        f"{URL}/sendMessage",
+        data={
+            "chat_id": chat_id,
+            "text": reply,
+            "reply_to_message_id": message_id
+        }
+    )
+
+    print("📤 SEND STATUS:", r.status_code)
+    print("📤 RESPONSE:", r.text)
 
     return "ok", 200
 
 
-# 🏠 اختبار السيرفر
+# 🏠 test
 @app.route("/")
 def home():
     return "Bot is running", 200
 
 
-# 🚀 تشغيل Flask على Render
+# 🚀 تشغيل محلي/Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
