@@ -8,7 +8,7 @@ from deep_translator import GoogleTranslator
 app = Flask(__name__)
 
 # 🔴 مهم جدًا: لازم يكون في Render Environment Variables
-TOKEN = os.getenv("TOKEN")
+TOKEN = 8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs
 
 print("🔑 TOKEN IN SERVER:", TOKEN)
 
