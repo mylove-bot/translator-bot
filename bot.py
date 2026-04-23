@@ -1,35 +1,43 @@
 import requests
 import re
+import time
 from flask import Flask, request
-from langdetect import detect
+from langdetect import detect, DetectorFactory
 from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-# 🔴 حط التوكن الجديد هنا
+# 🔴 التوكن (كما هو)
 TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
-
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
+DetectorFactory.seed = 0
 
-# 🔍 كشف اللغة
+
+# 🔍 كشف اللغة (EN / TR / RU فقط)
 def get_lang(text):
     try:
-        if re.search(r'[\u0600-\u06FF]', text):
-            return "ar"
+        text = text.strip()
 
+        # 🇷🇺 روسي
         if re.search(r'[\u0400-\u04FF]', text):
             return "ru"
 
-        if re.search(r'[ğüşöçıİ]', text.lower()):
+        # 🇹🇷 تركي
+        if re.search(r'[ğüşöçıİĞÜŞÖÇ]', text):
             return "tr"
 
+        # 🇬🇧 إنجليزي
+        if re.fullmatch(r'[A-Za-z0-9\s.,!?\'"()-]+', text):
+            return "en"
+
+        # 🧠 fallback
         lang = detect(text)
 
-        if lang.startswith("tr"):
-            return "tr"
         if lang.startswith("ru"):
             return "ru"
+        if lang.startswith("tr"):
+            return "tr"
 
         return "en"
 
@@ -37,13 +45,51 @@ def get_lang(text):
         return "en"
 
 
-# ⚡ الترجمة
+# ⚡ ترجمة
 def translate(text, target):
     try:
         return GoogleTranslator(source="auto", target=target).translate(text)
-    except Exception as e:
-        print("Translate error:", e)
+    except:
         return text
+
+
+# 📩 إرسال رسالة أولية
+def send_message(chat_id, text):
+    res = requests.post(
+        f"{URL}/sendMessage",
+        data={"chat_id": chat_id, "text": text},
+        timeout=5
+    )
+    return res.json()
+
+
+# ✏️ تعديل الرسالة
+def edit_message(chat_id, message_id, text):
+    requests.post(
+        f"{URL}/editMessageText",
+        data={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text
+        },
+        timeout=5
+    )
+
+
+# 🎬 Loading Bar
+def loading_bar(chat_id, message_id):
+    bars = [
+        "[░░░░░░░░░░] 0%",
+        "[██░░░░░░░░] 20%",
+        "[████░░░░░░] 40%",
+        "[██████░░░░] 60%",
+        "[████████░░] 80%",
+        "[██████████] 100%"
+    ]
+
+    for bar in bars:
+        edit_message(chat_id, message_id, f"⏳ Translating...\n{bar}")
+        time.sleep(0.25)
 
 
 # 💬 webhook
@@ -58,44 +104,44 @@ def webhook():
 
     text = message.get("text")
     chat_id = message.get("chat", {}).get("id")
-    message_id = message.get("message_id")
 
     if not text or not chat_id:
         return "ok", 200
 
     lang = get_lang(text)
 
-    # 🌍 الترجمة
+    # ⏳ رسالة البداية
+    temp = send_message(chat_id, "⏳ Translating...\n[░░░░░░░░░░] 0%")
+
+    try:
+        temp_id = temp["result"]["message_id"]
+    except:
+        temp_id = None
+
+    # 🎬 Loading animation
+    if temp_id:
+        loading_bar(chat_id, temp_id)
+
+    # 🧠 الترجمة
     if lang == "en":
-        tr = translate(text, "tr")
-        ru = translate(text, "ru")
-        reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
+        reply = f"🇹🇷 {translate(text,'tr')}\n🇷🇺 {translate(text,'ru')}"
 
     elif lang == "tr":
-        en = translate(text, "en")
-        ru = translate(text, "ru")
-        reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
+        reply = f"🇬🇧 {translate(text,'en')}\n🇷🇺 {translate(text,'ru')}"
 
     elif lang == "ru":
-        en = translate(text, "en")
-        tr = translate(text, "tr")
-        reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
+        reply = f"🇬🇧 {translate(text,'en')}\n🇹🇷 {translate(text,'tr')}"
 
     else:
-        en = translate(text, "en")
-        tr = translate(text, "tr")
-        ru = translate(text, "ru")
-        reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
+        reply = (
+            f"🇬🇧 {translate(text,'en')}\n"
+            f"🇹🇷 {translate(text,'tr')}\n"
+            f"🇷🇺 {translate(text,'ru')}"
+        )
 
-    # 🚀 إرسال + reply على نفس الرسالة
-    requests.post(
-        f"{URL}/sendMessage",
-        data={
-            "chat_id": chat_id,
-            "text": reply,
-            "reply_to_message_id": message_id
-        }
-    )
+    # ✨ النتيجة النهائية
+    if temp_id:
+        edit_message(chat_id, temp_id, reply)
 
     return "ok", 200
 
@@ -103,7 +149,7 @@ def webhook():
 # 🏠 اختبار السيرفر
 @app.route("/")
 def home():
-    return "Bot is running", 200
+    return "Bot is running 🚀", 200
 
 
 # 🚀 تشغيل
