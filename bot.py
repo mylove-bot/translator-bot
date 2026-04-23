@@ -1,6 +1,5 @@
 import requests
 import re
-import time
 from flask import Flask, request
 from langdetect import detect, DetectorFactory
 from deep_translator import GoogleTranslator
@@ -53,7 +52,7 @@ def translate(text, target):
         return text
 
 
-# 📩 إرسال رسالة أولية
+# 📩 إرسال رسالة
 def send_message(chat_id, text):
     res = requests.post(
         f"{URL}/sendMessage",
@@ -76,22 +75,6 @@ def edit_message(chat_id, message_id, text):
     )
 
 
-# 🎬 Loading Bar
-def loading_bar(chat_id, message_id):
-    bars = [
-        "[░░░░░░░░░░] 0%",
-        "[██░░░░░░░░] 20%",
-        "[████░░░░░░] 40%",
-        "[██████░░░░] 60%",
-        "[████████░░] 80%",
-        "[██████████] 100%"
-    ]
-
-    for bar in bars:
-        edit_message(chat_id, message_id, f"⏳ Translating...\n{bar}")
-        time.sleep(0.25)
-
-
 # 💬 webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -110,19 +93,15 @@ def webhook():
 
     lang = get_lang(text)
 
-    # ⏳ رسالة البداية
-    temp = send_message(chat_id, "⏳ Translating...\n[░░░░░░░░░░] 0%")
+    # ⏳ رسالة أولية بسيطة
+    temp = send_message(chat_id, "⏳ Translating...")
 
     try:
         temp_id = temp["result"]["message_id"]
     except:
         temp_id = None
 
-    # 🎬 Loading animation
-    if temp_id:
-        loading_bar(chat_id, temp_id)
-
-    # 🧠 الترجمة
+    # 🧠 الترجمة الفورية
     if lang == "en":
         reply = f"🇹🇷 {translate(text,'tr')}\n🇷🇺 {translate(text,'ru')}"
 
@@ -139,7 +118,7 @@ def webhook():
             f"🇷🇺 {translate(text,'ru')}"
         )
 
-    # ✨ النتيجة النهائية
+    # ✨ تحديث فوري
     if temp_id:
         edit_message(chat_id, temp_id, reply)
 
