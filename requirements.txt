@@ -1,5 +1,6 @@
 flask
 requests
 gunicorn
-langdetect
 deep-translator
+lingua-language-detector
+langdetect
