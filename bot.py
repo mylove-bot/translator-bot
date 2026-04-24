@@ -4,34 +4,25 @@ from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-# 🔴 حط التوكن الجديد هنا
-TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
-
+# 🔴 التوكن
+TOKEN = "8170971907:AAFnJxbMK6jQmlCAX8uZGuUz9P4WsimQQzM"
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
 
-# 🌍 ترجمة + كشف لغة من Google
-def translate_auto(text, target):
+# 🌍 كشف اللغة (ثابت وأبسط)
+def detect_lang(text):
     try:
-        translator = GoogleTranslator(source="auto", target=target)
-        result = translator.translate(text)
-        detected = translator.source  # اللغة المكتشفة
-        return result, detected
-    except Exception as e:
-        print("Translate error:", e)
-        return text, "en"
+        return GoogleTranslator(source="auto", target="en").detect(text)
+    except:
+        return "en"
 
 
-# 🌐 ترجمة لعدة لغات مرة وحدة
-def multi_translate(text):
+# 🌐 ترجمة واضحة بدون auto في الترجمة نفسها
+def translate(text, src, target):
     try:
-        en = GoogleTranslator(source="auto", target="en").translate(text)
-        tr = GoogleTranslator(source="auto", target="tr").translate(text)
-        ru = GoogleTranslator(source="auto", target="ru").translate(text)
-        return en, tr, ru
-    except Exception as e:
-        print("Translate error:", e)
-        return text, text, text
+        return GoogleTranslator(source=src, target=target).translate(text)
+    except:
+        return text
 
 
 # 💬 webhook
@@ -51,25 +42,32 @@ def webhook():
     if not text or not chat_id:
         return "ok", 200
 
-    # 🔍 كشف اللغة باستخدام Google
-    _, lang = translate_auto(text, "en")
+    # 🔍 كشف اللغة
+    lang = detect_lang(text)
 
-    # 🌍 ترجمة
-    en, tr, ru = multi_translate(text)
-
-    if lang == "en":
+    # 🌍 الترجمة حسب اللغة
+    if lang.startswith("en"):
+        tr = translate(text, "en", "tr")
+        ru = translate(text, "en", "ru")
         reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    elif lang == "tr":
+    elif lang.startswith("tr"):
+        en = translate(text, "tr", "en")
+        ru = translate(text, "tr", "ru")
         reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
 
-    elif lang == "ru":
+    elif lang.startswith("ru"):
+        en = translate(text, "ru", "en")
+        tr = translate(text, "ru", "tr")
         reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
 
     else:
+        en = translate(text, "auto", "en")
+        tr = translate(text, "auto", "tr")
+        ru = translate(text, "auto", "ru")
         reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    # 🚀 إرسال + reply على نفس الرسالة
+    # 🚀 إرسال الرد
     requests.post(
         f"{URL}/sendMessage",
         data={
