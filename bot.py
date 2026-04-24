@@ -1,89 +1,52 @@
 import requests
 import re
 from flask import Flask, request
-from deep_translator import GoogleTranslator
-from concurrent.futures import ThreadPoolExecutor
-
-# 🔥 Lingua + fallback
-from lingua import Language, LanguageDetectorBuilder
 from langdetect import detect
+from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
-TOKEN = "8170971907:AAF5zZ6bDuwNbcL1zpanp0oIcRHfbDzzuSg"
+# 🔴 حط التوكن الجديد هنا
+TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
+
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
-# 🔥 إعداد Lingua
-languages = [Language.ENGLISH, Language.TURKISH, Language.RUSSIAN, Language.ARABIC]
-detector = LanguageDetectorBuilder.from_languages(*languages).build()
 
-# ⚡ Threads
-executor = ThreadPoolExecutor(max_workers=3)
-
-# 🧠 Cache
-cache = {}
-
-
-# 🔍 كشف اللغة (Lingua + fallback)
-def detect_languages(text):
-    langs_found = set()
-
-    words = text.split()
-
-    for word in words:
-        try:
-            lang = detector.detect_language_of(word)
-
-            if lang == Language.TURKISH:
-                langs_found.add("tr")
-            elif lang == Language.RUSSIAN:
-                langs_found.add("ru")
-            elif lang == Language.ARABIC:
-                langs_found.add("ar")
-            else:
-                langs_found.add("en")
-
-        except:
-            continue
-
-    # 🔥 fallback لو فشل
-    if not langs_found:
-        try:
-            lang = detect(text)
-            if lang.startswith("tr"):
-                langs_found.add("tr")
-            elif lang.startswith("ru"):
-                langs_found.add("ru")
-            elif lang.startswith("ar"):
-                langs_found.add("ar")
-            else:
-                langs_found.add("en")
-        except:
-            langs_found.add("en")
-
-    return list(langs_found)
-
-
-# ⚡ ترجمة مع cache
-def translate_cached(text, target):
-    key = f"{text}_{target}"
-
-    if key in cache:
-        return cache[key]
-
+# 🔍 كشف اللغة
+def get_lang(text):
     try:
-        result = GoogleTranslator(source="auto", target=target).translate(text)
-        cache[key] = result
-        return result
+        if re.search(r'[\u0600-\u06FF]', text):
+            return "ar"
+
+        if re.search(r'[\u0400-\u04FF]', text):
+            return "ru"
+
+        if re.search(r'[ğüşöçıİ]', text.lower()):
+            return "tr"
+
+        lang = detect(text)
+
+        if lang.startswith("tr"):
+            return "tr"
+        if lang.startswith("ru"):
+            return "ru"
+
+        return "en"
+
     except:
+        return "en"
+
+
+# ⚡ الترجمة
+def translate(text, target):
+    try:
+        return GoogleTranslator(source="auto", target=target).translate(text)
+    except Exception as e:
+        print("Translate error:", e)
         return text
 
 
-# ⚡ async wrapper
-def translate_async(text, target):
-    return executor.submit(lambda: translate_cached(text, target))
-
-
+# 💬 webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json(force=True)
@@ -100,41 +63,31 @@ def webhook():
     if not text or not chat_id:
         return "ok", 200
 
-    langs = detect_languages(text)
+    lang = get_lang(text)
 
-    futures = []
-    used_targets = set()
+    # 🌍 الترجمة
+    if lang == "en":
+        tr = translate(text, "tr")
+        ru = translate(text, "ru")
+        reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    # 🎯 تحديد الترجمات بدون تكرار
-    if "en" in langs:
-        used_targets.update(["tr", "ru"])
+    elif lang == "tr":
+        en = translate(text, "en")
+        ru = translate(text, "ru")
+        reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
 
-    if "tr" in langs:
-        used_targets.update(["en", "ru"])
+    elif lang == "ru":
+        en = translate(text, "en")
+        tr = translate(text, "tr")
+        reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
 
-    if "ru" in langs:
-        used_targets.update(["en", "tr"])
+    else:
+        en = translate(text, "en")
+        tr = translate(text, "tr")
+        ru = translate(text, "ru")
+        reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
 
-    if "ar" in langs:
-        used_targets.update(["en", "tr", "ru"])
-
-    # 🚀 تشغيل الترجمة
-    for target in used_targets:
-        futures.append((target, translate_async(text, target)))
-
-    # ⏳ جمع النتائج
-    results = []
-    flags = {"en": "🇬🇧", "tr": "🇹🇷", "ru": "🇷🇺"}
-
-    for target, future in futures:
-        try:
-            result = future.result()
-            results.append(f"{flags.get(target, '')} {result}")
-        except:
-            pass
-
-    reply = "\n".join(results)
-
+    # 🚀 إرسال + reply على نفس الرسالة
     requests.post(
         f"{URL}/sendMessage",
         data={
@@ -147,10 +100,12 @@ def webhook():
     return "ok", 200
 
 
+# 🏠 اختبار السيرفر
 @app.route("/")
 def home():
     return "Bot is running", 200
 
 
+# 🚀 تشغيل
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
