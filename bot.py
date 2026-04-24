@@ -5,7 +5,7 @@ from deep_translator import GoogleTranslator
 app = Flask(__name__)
 
 # 🔴 التوكن
-TOKEN = "8170971907:AAFnJxbMK6jQmlCAX8uZGuUz9P4WsimQQzM"
+TOKEN = "8170971907:AAF5zZ6bDuwNbcL1zpanp0oIcRHfbDzzuSg"
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
 
