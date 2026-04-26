@@ -2,7 +2,7 @@ import requests
 from flask import Flask, request
 from deep_translator import GoogleTranslator, LibreTranslator
 
-app = Flask(name)
+app = Flask(__name__)
 
 TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
 URL = f"https://api.telegram.org/bot{TOKEN}"
