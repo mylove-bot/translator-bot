@@ -1,6 +1,7 @@
 import requests
 from flask import Flask, request
 from deep_translator import GoogleTranslator, LibreTranslator
+from langdetect import detect, LangDetectException
 
 app = Flask(__name__)
 
@@ -11,16 +12,8 @@ ACCEPTED_LANGS = {"ar", "en", "tr", "ru"}
 
 def detect_language(text):
     try:
-        response = requests.post(
-            "https://libretranslate.de/detect",
-            data={"q": text},
-            timeout=10
-        )
-        result = response.json()
-        if result and isinstance(result, list):
-            return result[0]["language"]
-        return None
-    except Exception as e:
+        return detect(text)
+    except LangDetectException as e:
         print("Language detection error:", e)
         return None
 
