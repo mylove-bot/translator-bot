@@ -1,6 +1,5 @@
 import requests
 from flask import Flask, request
-from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
@@ -8,32 +7,27 @@ app = Flask(__name__)
 TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
 URL = f"https://api.telegram.org/bot{TOKEN}"
 
-
-# 🌐 ترجمة عامة (auto)
+# 🌐 ترجمة باستخدام LibreTranslate
 def translate(text, target):
     try:
-        return GoogleTranslator(source="auto", target=target).translate(text)
-    except:
-        return text
-
-
-# 🔍 كشف لغة بسيط وثابت
-def detect_lang(text):
-    if any('\u0600' <= c <= '\u06FF' for c in text):
-        return "ar"
-    elif any('\u0400' <= c <= '\u04FF' for c in text):
-        return "ru"
-    elif any(c in "ğüşöçıİ" for c in text.lower()):
-        return "tr"
-    else:
-        return "en"
+        response = requests.post(
+            "https://libretranslate.de/translate",
+            data={
+                "q": text,
+                "source": "auto",
+                "target": target,
+                "format": "text"
+            }
+        )
+        return response.json()["translatedText"]
+    except Exception as e:
+        return f"خطأ بالترجمة: {e}"
 
 
 # 💬 webhook
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json(force=True)
-
     message = data.get("message") or data.get("edited_message")
 
     if not message:
@@ -46,26 +40,13 @@ def webhook():
     if not text or not chat_id:
         return "ok", 200
 
-    # 🔍 كشف اللغة
-    lang = detect_lang(text)
-
-    # 🌍 الترجمات
+    # 🌍 الترجمات (دائمًا إنجليزي + روسي + تركي)
     en = translate(text, "en")
-    tr = translate(text, "tr")
     ru = translate(text, "ru")
+    tr = translate(text, "tr")
 
-    # 💬 الرد حسب اللغة
-    if lang == "en":
-        reply = f"🇹🇷 {tr}\n🇷🇺 {ru}"
-
-    elif lang == "tr":
-        reply = f"🇬🇧 {en}\n🇷🇺 {ru}"
-
-    elif lang == "ru":
-        reply = f"🇬🇧 {en}\n🇹🇷 {tr}"
-
-    else:
-        reply = f"🇬🇧 {en}\n🇹🇷 {tr}\n🇷🇺 {ru}"
+    # 💬 الرد
+    reply = f"🇬🇧 {en}\n🇷🇺 {ru}\n🇹🇷 {tr}"
 
     # 🚀 إرسال الرد
     requests.post(
