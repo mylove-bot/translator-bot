@@ -2,7 +2,7 @@ import requests
 from flask import Flask, request
 from deep_translator import GoogleTranslator, LibreTranslator
 
-app = Flask(__name__)
+app = Flask(name)
 
 TOKEN = "8170971907:AAE5CjJoTMyp6UGzP0hGjm0uKJpXDrBKgSs"
 URL = f"https://api.telegram.org/bot{TOKEN}"
@@ -83,5 +83,5 @@ def webhook():
 def home():
     return "Bot is running", 200
 
-if __name__ == "__main__":
+if name == "main":
     app.run(host="0.0.0.0", port=5000)
