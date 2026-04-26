@@ -1,4 +1,6 @@
-flask
-requests
-deep-translator
 gunicorn
+requests
+langdetect
+flask
+python-telegram-bot==20.7
+deep_translator
