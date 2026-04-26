@@ -24,7 +24,7 @@ def detect_language(text):
         print("Language detection error:", e)
         return "auto"
 
-# 🌐 الترجمة باستخدام deep-translator أولاً، ثم LibreTranslate كبديل
+# 🌐 الترجمة باستخدام GoogleTranslator أولاً، ثم LibreTranslate كبديل
 def translate(text, target):
     try:
         return GoogleTranslator(source='auto', target=target).translate(text)
@@ -67,7 +67,7 @@ def webhook():
     elif src_lang == "ru":
         translations.append(("🇬🇧", translate(text, "en")))
         translations.append(("🇹🇷", translate(text, "tr")))
-    else:
+    else:  # أي لغة ثانية (مثلاً عربي)
         translations.append(("🇬🇧", translate(text, "en")))
         translations.append(("🇷🇺", translate(text, "ru")))
         translations.append(("🇹🇷", translate(text, "tr")))
